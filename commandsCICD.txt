@@ -1,0 +1,564 @@
+GENERAL CI/CD EXAM TEMPLATE — SOURCE FILES FIRST, COMMANDS AFTER
+==================================================================
+
+HOW TO USE THIS FILE
+--------------------
+This is a reusable starter template for a simple Python Flask web API.
+For another exam application, make small changes to the app name, routes/data,
+test names, Docker image name, port, and Kubernetes resource names.
+
+You do not need to use every file if your exam asks for fewer stages.
+Read the exam question first. Do not copy secrets or passwords into any source file.
+
+Suggested project structure:
+
+your-project/
+├── app.py
+├── requirements.txt
+├── test_app.py
+├── Dockerfile
+├── .dockerignore
+├── .gitignore
+├── .github/
+│   └── workflows/
+│       └── pipeline.yml
+└── k8s/
+    └── deployment.yaml
+
+
+PART 1 — SOURCE FILES
+=====================
+
+FILE 1: app.py
+--------------
+A small Flask API with a home endpoint, sample data endpoint, and health endpoint.
+Change the sample data and route names to suit the application in your exam.
+
+----- START app.py -----
+from flask import Flask, jsonify
+
+app = Flask(__name__)
+
+# Replace this sample data with the data for your application.
+items = [
+    {"id": 1, "name": "Item One"},
+    {"id": 2, "name": "Item Two"},
+    {"id": 3, "name": "Item Three"},
+]
+
+
+@app.route("/")
+def home():
+    return jsonify({
+        "message": "Application is running",
+        "items_count": len(items),
+        "endpoints": ["/", "/items", "/health"]
+    })
+
+
+@app.route("/items")
+def get_items():
+    return jsonify(items)
+
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "healthy"})
+
+
+if __name__ == "__main__":
+    # Use 0.0.0.0 so the app can be reached from Docker/Kubernetes.
+    app.run(host="0.0.0.0", port=5000)
+----- END app.py -----
+
+
+FILE 2: requirements.txt
+------------------------
+Lists Python packages needed by the app and tests.
+
+----- START requirements.txt -----
+Flask
+pytest
+----- END requirements.txt -----
+
+
+FILE 3: test_app.py
+-------------------
+Basic automated tests. Update the expected message/routes if you change app.py.
+
+----- START test_app.py -----
+from app import app
+
+
+def test_home():
+    client = app.test_client()
+    response = client.get("/")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["message"] == "Application is running"
+
+
+def test_items():
+    client = app.test_client()
+    response = client.get("/items")
+    assert response.status_code == 200
+    assert isinstance(response.get_json(), list)
+
+
+def test_health():
+    client = app.test_client()
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.get_json()["status"] == "healthy"
+----- END test_app.py -----
+
+
+FILE 4: Dockerfile
+------------------
+Builds a Docker image. If you use a different language/framework, adapt this file.
+
+----- START Dockerfile -----
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY app.py .
+EXPOSE 5000
+
+CMD ["python", "app.py"]
+----- END Dockerfile -----
+
+
+FILE 5: .dockerignore
+---------------------
+Stops unnecessary files from being copied into the Docker image.
+
+----- START .dockerignore -----
+.venv
+__pycache__
+.pytest_cache
+.git
+.env
+----- END .dockerignore -----
+
+
+FILE 6: .gitignore
+------------------
+Stops local and secret files from being committed to Git.
+
+----- START .gitignore -----
+.venv/
+__pycache__/
+.pytest_cache/
+.env
+.DS_Store
+----- END .gitignore -----
+
+
+FILE 7: .github/workflows/pipeline.yml
+--------------------------------------
+This workflow runs tests on pushes and pull requests. On a push to main, it then
+builds and pushes the Docker image to Docker Hub.
+
+Before using it:
+- Create GitHub repository secrets named DOCKERHUB_USERNAME and DOCKERHUB_TOKEN.
+- DOCKERHUB_TOKEN must be a Docker Hub access token with permission to push images.
+- Change YOUR_DOCKERHUB_USERNAME and YOUR_APP_IMAGE to your real Docker Hub username/image.
+- The example assumes Python 3.12, requirements.txt, pytest, and a Dockerfile in the project root.
+
+----- START .github/workflows/pipeline.yml -----
+name: CI CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: python -m pytest -v
+
+  build-and-push:
+    name: Build and Push Docker Image
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: YOUR_DOCKERHUB_USERNAME/YOUR_APP_IMAGE:latest
+----- END .github/workflows/pipeline.yml -----
+
+
+FILE 8: k8s/deployment.yaml
+---------------------------
+Creates two replicas and a service. Change the image, names, and ports as needed.
+The app in this template listens on container port 5000.
+
+----- START k8s/deployment.yaml -----
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sample-app
+  template:
+    metadata:
+      labels:
+        app: sample-app
+    spec:
+      containers:
+        - name: sample-app
+          image: YOUR_DOCKERHUB_USERNAME/YOUR_APP_IMAGE:latest
+          ports:
+            - containerPort: 5000
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sample-app-service
+spec:
+  type: NodePort
+  selector:
+    app: sample-app
+  ports:
+    - port: 5000
+      targetPort: 5000
+      nodePort: 30080
+----- END k8s/deployment.yaml -----
+
+
+PART 2 — TERMINAL COMMANDS IN ORDER
+===================================
+
+STEP 1 — OPEN THE PROJECT FOLDER
+--------------------------------
+Move into the folder provided for your exam project:
+
+cd /path/to/your-project
+
+Check where you are and list the files:
+
+pwd
+ls -la
+
+Replace /path/to/your-project with the actual folder path.
+
+
+STEP 2 — CREATE AND ACTIVATE A PYTHON ENVIRONMENT
+-------------------------------------------------
+Create this only if the .venv folder does not already exist:
+
+python3 -m venv .venv
+
+Activate it on macOS/Linux:
+
+source .venv/bin/activate
+
+Install dependencies:
+
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+
+
+STEP 3 — RUN THE APP AND TESTS
+------------------------------
+Run automated tests:
+
+python -m pytest -v
+
+Start the app:
+
+python app.py
+
+In a second terminal, test endpoints:
+
+curl http://localhost:5000/
+curl http://localhost:5000/items
+curl http://localhost:5000/health
+
+Stop the running app with Ctrl+C.
+
+
+STEP 4 — CREATE A GIT REPOSITORY AND PUSH TO GITHUB
+---------------------------------------------------
+First check whether Git is already set up:
+
+git status
+git remote -v
+
+If this is a new project and Git has not been initialized:
+
+git init
+git branch -M main
+git add .
+git commit -m "Initial commit"
+
+Create an empty repository on GitHub, then add its URL (replace the URL):
+
+git remote add origin https://github.com/GITHUB_USERNAME/REPOSITORY_NAME.git
+git push -u origin main
+
+For later changes, use:
+
+git add .
+git commit -m "Describe the change"
+git push
+
+If a remote already exists, do not add it again. Use git remote -v to check it.
+Do not commit .venv, .env files, passwords, or access tokens.
+
+
+STEP 5 — CREATE THE GITHUB ACTIONS WORKFLOW
+-------------------------------------------
+Create the workflow folder and file:
+
+mkdir -p .github/workflows
+touch .github/workflows/pipeline.yml
+
+Paste FILE 7 above into .github/workflows/pipeline.yml and save it.
+First, replace the Docker Hub image placeholders in that workflow.
+
+Test locally before pushing:
+
+python -m pytest -v
+
+Commit and push the workflow:
+
+git add .github/workflows/pipeline.yml
+git commit -m "Add GitHub Actions workflow"
+git push
+
+Open the repository on GitHub, select Actions, and check the latest run.
+
+
+STEP 6 — BUILD THE DOCKER IMAGE
+-------------------------------
+Make sure Docker Desktop (or the Docker engine) is running.
+
+Build the image (replace APP_NAME with a simple lowercase app name):
+
+docker build -t APP_NAME:latest .
+
+Check that it exists:
+
+docker images
+
+
+STEP 7 — RUN AND TEST THE DOCKER CONTAINER
+------------------------------------------
+For the example app, the container listens on port 5000. This command exposes it on
+port 5001 on your computer:
+
+docker run -d --name APP_NAME-container -p 5001:5000 APP_NAME:latest
+
+Check the container:
+
+docker ps
+docker logs APP_NAME-container
+
+Test:
+
+curl http://localhost:5001/
+curl http://localhost:5001/health
+
+If the name is already in use, remove the old container and run it again:
+
+docker rm -f APP_NAME-container
+
+If port 5001 is busy, choose another host port, for example -p 5002:5000.
+
+
+STEP 8 — PUSH THE IMAGE TO DOCKER HUB
+-------------------------------------
+Log in interactively:
+
+docker login
+
+Tag the image (replace both placeholders):
+
+docker tag APP_NAME:latest DOCKERHUB_USERNAME/APP_NAME:latest
+
+Push it:
+
+docker push DOCKERHUB_USERNAME/APP_NAME:latest
+
+Do not paste your access token into this file or into source code.
+
+
+STEP 9 — AUTOMATE DOCKER HUB PUSHING
+------------------------------------
+In GitHub, open:
+Repository → Settings → Secrets and variables → Actions → New repository secret
+
+Add:
+DOCKERHUB_USERNAME = your Docker Hub username
+DOCKERHUB_TOKEN = your Docker Hub access token with write permission
+
+Never put the token directly in the workflow. The workflow uses GitHub secrets safely.
+
+In FILE 7, replace:
+YOUR_DOCKERHUB_USERNAME/YOUR_APP_IMAGE:latest
+with your actual Docker Hub image, for example:
+myusername/my-app:latest
+
+Push the changed workflow:
+
+git add .github/workflows/pipeline.yml
+git commit -m "Automate Docker image publishing"
+git push
+
+Open GitHub → Actions. Confirm tests pass and the build-and-push job passes.
+
+
+STEP 10 — DEPLOY TO KUBERNETES
+------------------------------
+Make sure Kubernetes is enabled/running, for example through Docker Desktop.
+
+Check the cluster:
+
+kubectl config current-context
+kubectl get nodes
+
+Create the folder and deployment file:
+
+mkdir -p k8s
+touch k8s/deployment.yaml
+
+Paste FILE 8 above into k8s/deployment.yaml. Replace the Docker Hub image and ensure
+the app name, selectors, service name, ports, and /health path match your application.
+
+Apply it:
+
+kubectl apply -f k8s/deployment.yaml
+
+Check resources:
+
+kubectl get pods
+kubectl get deployments
+kubectl get services
+
+Wait until the pods are Ready. If not, inspect them:
+
+kubectl describe pod POD_NAME
+kubectl logs deployment/sample-app
+
+On some local Kubernetes setups, NodePort may not be reachable from localhost. Use
+port forwarding instead:
+
+kubectl port-forward service/sample-app-service 8080:5000
+
+Keep that terminal open. In a second terminal or browser, test:
+
+curl http://localhost:8080/
+curl http://localhost:8080/health
+
+Stop port forwarding with Ctrl+C.
+
+
+STEP 11 — PUSH FINAL FILES TO GITHUB
+------------------------------------
+After saving all source/configuration files:
+
+git status
+git add .
+git commit -m "Add application CI/CD and Kubernetes files"
+git push
+
+If Git says there is nothing to commit, there is no new change to commit.
+
+
+QUICK TROUBLESHOOTING
+=====================
+Tests fail:
+python -m pytest -v
+
+Container stopped or crashed:
+docker ps -a
+docker logs APP_NAME-container
+
+Docker build fails:
+Check that Dockerfile exists, is not empty, and its CMD matches the app's entry file.
+
+Docker Hub says 401 or insufficient scopes:
+Check the username and update the GitHub DOCKERHUB_TOKEN secret with a token that can
+read and write repositories. Then rerun the failed workflow.
+
+Pods are not ready:
+kubectl get pods
+kubectl describe pod POD_NAME
+kubectl logs deployment/sample-app
+
+Service cannot be reached:
+kubectl get services
+kubectl get endpoints sample-app-service
+Try the port-forward command shown above.
+
+EXAM REMINDER
+=============
+Do the steps in this order:
+1. Understand the given app and its files.
+2. Set up dependencies.
+3. Run the app and tests.
+4. Push code to GitHub.
+5. Add GitHub Actions.
+6. Build and test Docker.
+7. Push the image to Docker Hub.
+8. Add GitHub secrets and automate image publishing if required.
+9. Deploy to Kubernetes if the question asks for it.
+10. Test the endpoints and check the logs.
+
+Change the example app name, sample data, routes, ports, test expectations, Docker image name,
+and Kubernetes names to match the exam application. This template is for Flask/Python; a
+different language or framework needs its own dependencies, test command, Dockerfile, and
+startup command.

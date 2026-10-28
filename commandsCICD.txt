@@ -280,219 +280,196 @@ spec:
 
 # PART 2 — WINDOWS COMMANDS (STEP BY STEP)
 
-All commands below are for **Windows PowerShell** in VS Code.
+All commands below are for Windows PowerShell in VS Code.
 
 ## STEP 1 — OPEN YOUR PROJECT
 
 Open your project folder in VS Code.
 
-Open **Terminal → New Terminal**.
+Open Terminal → New Terminal.
 
-Check the files in your project:
+Check the current folder and files:
 
-```powershell
 Get-Location
+
 Get-ChildItem
-```
+
 
 ## STEP 2 — INSTALL PYTHON PACKAGES
 
 Create a virtual environment:
 
-```powershell
 py -m venv .venv
-```
 
 Activate it:
 
-```powershell
 .\.venv\Scripts\Activate.ps1
-```
 
 If activation is blocked, run:
 
-```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+
 .\.venv\Scripts\Activate.ps1
-```
 
 Install the required packages:
 
-```powershell
 py -m pip install -r requirements.txt
-```
+
 
 ## STEP 3 — RUN THE APP AND TEST IT
 
 Run the tests:
 
-```powershell
 py -m pytest -v
-```
 
 Start the application:
 
-```powershell
 py app.py
-```
 
 Keep this terminal open. Open another terminal and test:
 
-```powershell
 curl.exe http://localhost:5000/
-curl.exe http://localhost:5000/health
-```
 
-Stop the app using **Ctrl + C**.
+curl.exe http://localhost:5000/health
+
+Stop the app using Ctrl + C.
+
 
 ## STEP 4 — UPLOAD THE PROJECT TO GITHUB
 
 Check Git:
 
-```powershell
 git status
-```
 
 If Git is not initialized yet, run:
 
-```powershell
 git init
+
 git branch -M main
+
 git add .
+
 git commit -m "Initial commit"
-```
 
 Create an empty repository on GitHub. Connect it using your repository URL:
 
-```powershell
 git remote add origin https://github.com/USERNAME/REPOSITORY.git
-git push -u origin main
-```
 
-Replace `USERNAME` and `REPOSITORY` with your actual details.
+git push -u origin main
 
 For later changes, use:
 
-```powershell
 git add .
+
 git commit -m "Update application"
+
 git push
-```
 
 If a remote already exists, do not add it again.
+
 
 ## STEP 5 — SET UP GITHUB ACTIONS
 
 Create the workflow folder and file:
 
-```powershell
 New-Item -ItemType Directory -Force .github\workflows
-New-Item -ItemType File -Force .github\workflows\pipeline.yml
-```
 
-Open `pipeline.yml` in VS Code and paste **FILE 7 from Part 1**.
+New-Item -ItemType File -Force .github\workflows\pipeline.yml
+
+Open pipeline.yml in VS Code and paste FILE 7 from Part 1.
 
 Replace the Docker Hub image placeholder with your actual username and image name.
 
 Save the file and run:
 
-```powershell
 py -m pytest -v
-git add .
-git commit -m "Add GitHub Actions workflow"
-git push
-```
 
-Open your GitHub repository → **Actions** and check whether the workflow passes.
+git add .
+
+git commit -m "Add GitHub Actions workflow"
+
+git push
+
+Open your GitHub repository → Actions and check whether the workflow passes.
+
 
 ## STEP 6 — BUILD THE DOCKER IMAGE
 
 Start Docker Desktop and wait until it is running.
 
-Build the image. Replace `APP_NAME` with your app name:
+Build the image. Replace APP_NAME with your app name:
 
-```powershell
 docker build -t APP_NAME:latest .
-```
 
 Check the image:
 
-```powershell
 docker images
-```
+
 
 ## STEP 7 — RUN THE DOCKER CONTAINER
 
 Run the container:
 
-```powershell
 docker run -d --name APP_NAME-container -p 5001:5000 APP_NAME:latest
-```
 
 Check that it is running:
 
-```powershell
 docker ps
+
 docker logs APP_NAME-container
-```
 
 Test the app:
 
-```powershell
 curl.exe http://localhost:5001/
+
 curl.exe http://localhost:5001/health
-```
 
 If the container name is already in use, remove the old container:
 
-```powershell
 docker rm -f APP_NAME-container
-```
+
 
 ## STEP 8 — PUSH THE IMAGE TO DOCKER HUB
 
 Log in:
 
-```powershell
 docker login
-```
 
 Tag your image:
 
-```powershell
 docker tag APP_NAME:latest DOCKERHUB_USERNAME/APP_NAME:latest
-```
 
 Push it:
 
-```powershell
 docker push DOCKERHUB_USERNAME/APP_NAME:latest
-```
 
 Replace the placeholders with your actual app name and Docker Hub username.
+
 
 ## STEP 9 — AUTOMATE DOCKER PUSHING
 
 In GitHub, open:
 
-**Repository → Settings → Secrets and variables → Actions**
+Repository → Settings → Secrets and variables → Actions
 
 Create these two secrets:
 
-- `DOCKERHUB_USERNAME` — your Docker Hub username
-- `DOCKERHUB_TOKEN` — your Docker Hub access token
+DOCKERHUB_USERNAME — your Docker Hub username
+
+DOCKERHUB_TOKEN — your Docker Hub access token
 
 In FILE 7, make sure the image tag matches your Docker Hub repository.
 
 Push your updated workflow:
 
-```powershell
 git add .
-git commit -m "Automate Docker image publishing"
-git push
-```
 
-Open GitHub → **Actions** and confirm that the tests and Docker image publishing succeed.
+git commit -m "Automate Docker image publishing"
+
+git push
+
+Open GitHub → Actions and confirm that the tests and Docker image publishing succeed.
+
 
 ## STEP 10 — DEPLOY TO KUBERNETES
 
@@ -500,84 +477,75 @@ Make sure Kubernetes is enabled in Docker Desktop.
 
 Check the cluster:
 
-```powershell
 kubectl get nodes
-```
 
 Create the Kubernetes folder and file:
 
-```powershell
 New-Item -ItemType Directory -Force k8s
-New-Item -ItemType File -Force k8s\deployment.yaml
-```
 
-Open `k8s\deployment.yaml` and paste **FILE 8 from Part 1**.
+New-Item -ItemType File -Force k8s\deployment.yaml
+
+Open k8s\deployment.yaml and paste FILE 8 from Part 1.
 
 Replace the Docker Hub image placeholder with your actual image.
 
 Deploy the application:
 
-```powershell
 kubectl apply -f k8s/deployment.yaml
-```
 
 Check the deployment:
 
-```powershell
 kubectl get pods
+
 kubectl get deployments
+
 kubectl get services
-```
 
 If a pod is not running, check its logs:
 
-```powershell
 kubectl logs deployment/sample-app
-```
 
 To access the app locally, run:
 
-```powershell
 kubectl port-forward service/sample-app-service 8080:5000
-```
 
 Keep that terminal open. In another terminal, test:
 
-```powershell
 curl.exe http://localhost:8080/
-curl.exe http://localhost:8080/health
-```
 
-Stop port forwarding with **Ctrl + C**.
+curl.exe http://localhost:8080/health
+
+Stop port forwarding with Ctrl + C.
+
 
 ## STEP 11 — SAVE YOUR FINAL CHANGES TO GITHUB
 
 After changing or adding files, run:
 
-```powershell
 git status
+
 git add .
+
 git commit -m "Add final CI/CD and Kubernetes files"
+
 git push
-```
 
 If Git says there is nothing to commit, no new changes need saving.
 
----
 
-# QUICK EXAM ORDER
+## QUICK EXAM ORDER
 
 Remember this order:
 
-1. **APP** — Run the application.
-2. **TEST** — Check that tests pass.
-3. **GITHUB** — Upload the code.
-4. **CI** — Set up GitHub Actions.
-5. **DOCKER** — Build and run the container.
-6. **HUB** — Push the image to Docker Hub.
-7. **KUBERNETES** — Deploy and test, if required.
+1. APP — Run the application.
+2. TEST — Check that tests pass.
+3. GITHUB — Upload the code.
+4. CI — Set up GitHub Actions.
+5. DOCKER — Build and run the container.
+6. HUB — Push the image to Docker Hub.
+7. KUBERNETES — Deploy and test, if required.
 
-**Important:** Use only the steps required by your exam question. Replace sample names and ports with the values used in your application.
+Important: Use only the steps required by your exam question. Replace sample names and ports with the values used in your application.
 
 QUICK TROUBLESHOOTING
 =====================

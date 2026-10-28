@@ -278,245 +278,306 @@ spec:
 ----- END k8s/deployment.yaml -----
 
 
-PART 2 — TERMINAL COMMANDS IN ORDER
-===================================
+# PART 2 — WINDOWS COMMANDS (STEP BY STEP)
 
-STEP 1 — OPEN THE PROJECT FOLDER
---------------------------------
-Move into the folder provided for your exam project:
+All commands below are for **Windows PowerShell** in VS Code.
 
-cd /path/to/your-project
+## STEP 1 — OPEN YOUR PROJECT
 
-Check where you are and list the files:
+Open your project folder in VS Code.
 
-pwd
-ls -la
+Open **Terminal → New Terminal**.
 
-Replace /path/to/your-project with the actual folder path.
+Check the files in your project:
 
+```powershell
+Get-Location
+Get-ChildItem
+```
 
-STEP 2 — CREATE AND ACTIVATE A PYTHON ENVIRONMENT
--------------------------------------------------
-Create this only if the .venv folder does not already exist:
+## STEP 2 — INSTALL PYTHON PACKAGES
 
-python3 -m venv .venv
+Create a virtual environment:
 
-Activate it on macOS/Linux:
+```powershell
+py -m venv .venv
+```
 
-source .venv/bin/activate
+Activate it:
 
-Install dependencies:
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
 
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+If activation is blocked, run:
 
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+```
 
-STEP 3 — RUN THE APP AND TESTS
-------------------------------
-Run automated tests:
+Install the required packages:
 
-python -m pytest -v
+```powershell
+py -m pip install -r requirements.txt
+```
 
-Start the app:
+## STEP 3 — RUN THE APP AND TEST IT
 
-python app.py
+Run the tests:
 
-In a second terminal, test endpoints:
+```powershell
+py -m pytest -v
+```
 
-curl http://localhost:5000/
-curl http://localhost:5000/items
-curl http://localhost:5000/health
+Start the application:
 
-Stop the running app with Ctrl+C.
+```powershell
+py app.py
+```
 
+Keep this terminal open. Open another terminal and test:
 
-STEP 4 — CREATE A GIT REPOSITORY AND PUSH TO GITHUB
----------------------------------------------------
-First check whether Git is already set up:
+```powershell
+curl.exe http://localhost:5000/
+curl.exe http://localhost:5000/health
+```
 
+Stop the app using **Ctrl + C**.
+
+## STEP 4 — UPLOAD THE PROJECT TO GITHUB
+
+Check Git:
+
+```powershell
 git status
-git remote -v
+```
 
-If this is a new project and Git has not been initialized:
+If Git is not initialized yet, run:
 
+```powershell
 git init
 git branch -M main
 git add .
 git commit -m "Initial commit"
+```
 
-Create an empty repository on GitHub, then add its URL (replace the URL):
+Create an empty repository on GitHub. Connect it using your repository URL:
 
-git remote add origin https://github.com/GITHUB_USERNAME/REPOSITORY_NAME.git
+```powershell
+git remote add origin https://github.com/USERNAME/REPOSITORY.git
 git push -u origin main
+```
+
+Replace `USERNAME` and `REPOSITORY` with your actual details.
 
 For later changes, use:
 
+```powershell
 git add .
-git commit -m "Describe the change"
+git commit -m "Update application"
 git push
+```
 
-If a remote already exists, do not add it again. Use git remote -v to check it.
-Do not commit .venv, .env files, passwords, or access tokens.
+If a remote already exists, do not add it again.
 
+## STEP 5 — SET UP GITHUB ACTIONS
 
-STEP 5 — CREATE THE GITHUB ACTIONS WORKFLOW
--------------------------------------------
 Create the workflow folder and file:
 
-mkdir -p .github/workflows
-touch .github/workflows/pipeline.yml
+```powershell
+New-Item -ItemType Directory -Force .github\workflows
+New-Item -ItemType File -Force .github\workflows\pipeline.yml
+```
 
-Paste FILE 7 above into .github/workflows/pipeline.yml and save it.
-First, replace the Docker Hub image placeholders in that workflow.
+Open `pipeline.yml` in VS Code and paste **FILE 7 from Part 1**.
 
-Test locally before pushing:
+Replace the Docker Hub image placeholder with your actual username and image name.
 
-python -m pytest -v
+Save the file and run:
 
-Commit and push the workflow:
-
-git add .github/workflows/pipeline.yml
+```powershell
+py -m pytest -v
+git add .
 git commit -m "Add GitHub Actions workflow"
 git push
+```
 
-Open the repository on GitHub, select Actions, and check the latest run.
+Open your GitHub repository → **Actions** and check whether the workflow passes.
 
+## STEP 6 — BUILD THE DOCKER IMAGE
 
-STEP 6 — BUILD THE DOCKER IMAGE
--------------------------------
-Make sure Docker Desktop (or the Docker engine) is running.
+Start Docker Desktop and wait until it is running.
 
-Build the image (replace APP_NAME with a simple lowercase app name):
+Build the image. Replace `APP_NAME` with your app name:
 
+```powershell
 docker build -t APP_NAME:latest .
+```
 
-Check that it exists:
+Check the image:
 
+```powershell
 docker images
+```
 
+## STEP 7 — RUN THE DOCKER CONTAINER
 
-STEP 7 — RUN AND TEST THE DOCKER CONTAINER
-------------------------------------------
-For the example app, the container listens on port 5000. This command exposes it on
-port 5001 on your computer:
+Run the container:
 
+```powershell
 docker run -d --name APP_NAME-container -p 5001:5000 APP_NAME:latest
+```
 
-Check the container:
+Check that it is running:
 
+```powershell
 docker ps
 docker logs APP_NAME-container
+```
 
-Test:
+Test the app:
 
-curl http://localhost:5001/
-curl http://localhost:5001/health
+```powershell
+curl.exe http://localhost:5001/
+curl.exe http://localhost:5001/health
+```
 
-If the name is already in use, remove the old container and run it again:
+If the container name is already in use, remove the old container:
 
+```powershell
 docker rm -f APP_NAME-container
+```
 
-If port 5001 is busy, choose another host port, for example -p 5002:5000.
+## STEP 8 — PUSH THE IMAGE TO DOCKER HUB
 
+Log in:
 
-STEP 8 — PUSH THE IMAGE TO DOCKER HUB
--------------------------------------
-Log in interactively:
-
+```powershell
 docker login
+```
 
-Tag the image (replace both placeholders):
+Tag your image:
 
+```powershell
 docker tag APP_NAME:latest DOCKERHUB_USERNAME/APP_NAME:latest
+```
 
 Push it:
 
+```powershell
 docker push DOCKERHUB_USERNAME/APP_NAME:latest
+```
 
-Do not paste your access token into this file or into source code.
+Replace the placeholders with your actual app name and Docker Hub username.
 
+## STEP 9 — AUTOMATE DOCKER PUSHING
 
-STEP 9 — AUTOMATE DOCKER HUB PUSHING
-------------------------------------
 In GitHub, open:
-Repository → Settings → Secrets and variables → Actions → New repository secret
 
-Add:
-DOCKERHUB_USERNAME = your Docker Hub username
-DOCKERHUB_TOKEN = your Docker Hub access token with write permission
+**Repository → Settings → Secrets and variables → Actions**
 
-Never put the token directly in the workflow. The workflow uses GitHub secrets safely.
+Create these two secrets:
 
-In FILE 7, replace:
-YOUR_DOCKERHUB_USERNAME/YOUR_APP_IMAGE:latest
-with your actual Docker Hub image, for example:
-myusername/my-app:latest
+- `DOCKERHUB_USERNAME` — your Docker Hub username
+- `DOCKERHUB_TOKEN` — your Docker Hub access token
 
-Push the changed workflow:
+In FILE 7, make sure the image tag matches your Docker Hub repository.
 
-git add .github/workflows/pipeline.yml
+Push your updated workflow:
+
+```powershell
+git add .
 git commit -m "Automate Docker image publishing"
 git push
+```
 
-Open GitHub → Actions. Confirm tests pass and the build-and-push job passes.
+Open GitHub → **Actions** and confirm that the tests and Docker image publishing succeed.
 
+## STEP 10 — DEPLOY TO KUBERNETES
 
-STEP 10 — DEPLOY TO KUBERNETES
-------------------------------
-Make sure Kubernetes is enabled/running, for example through Docker Desktop.
+Make sure Kubernetes is enabled in Docker Desktop.
 
 Check the cluster:
 
-kubectl config current-context
+```powershell
 kubectl get nodes
+```
 
-Create the folder and deployment file:
+Create the Kubernetes folder and file:
 
-mkdir -p k8s
-touch k8s/deployment.yaml
+```powershell
+New-Item -ItemType Directory -Force k8s
+New-Item -ItemType File -Force k8s\deployment.yaml
+```
 
-Paste FILE 8 above into k8s/deployment.yaml. Replace the Docker Hub image and ensure
-the app name, selectors, service name, ports, and /health path match your application.
+Open `k8s\deployment.yaml` and paste **FILE 8 from Part 1**.
 
-Apply it:
+Replace the Docker Hub image placeholder with your actual image.
 
+Deploy the application:
+
+```powershell
 kubectl apply -f k8s/deployment.yaml
+```
 
-Check resources:
+Check the deployment:
 
+```powershell
 kubectl get pods
 kubectl get deployments
 kubectl get services
+```
 
-Wait until the pods are Ready. If not, inspect them:
+If a pod is not running, check its logs:
 
-kubectl describe pod POD_NAME
+```powershell
 kubectl logs deployment/sample-app
+```
 
-On some local Kubernetes setups, NodePort may not be reachable from localhost. Use
-port forwarding instead:
+To access the app locally, run:
 
+```powershell
 kubectl port-forward service/sample-app-service 8080:5000
+```
 
-Keep that terminal open. In a second terminal or browser, test:
+Keep that terminal open. In another terminal, test:
 
-curl http://localhost:8080/
-curl http://localhost:8080/health
+```powershell
+curl.exe http://localhost:8080/
+curl.exe http://localhost:8080/health
+```
 
-Stop port forwarding with Ctrl+C.
+Stop port forwarding with **Ctrl + C**.
 
+## STEP 11 — SAVE YOUR FINAL CHANGES TO GITHUB
 
-STEP 11 — PUSH FINAL FILES TO GITHUB
-------------------------------------
-After saving all source/configuration files:
+After changing or adding files, run:
 
+```powershell
 git status
 git add .
-git commit -m "Add application CI/CD and Kubernetes files"
+git commit -m "Add final CI/CD and Kubernetes files"
 git push
+```
 
-If Git says there is nothing to commit, there is no new change to commit.
+If Git says there is nothing to commit, no new changes need saving.
 
+---
+
+# QUICK EXAM ORDER
+
+Remember this order:
+
+1. **APP** — Run the application.
+2. **TEST** — Check that tests pass.
+3. **GITHUB** — Upload the code.
+4. **CI** — Set up GitHub Actions.
+5. **DOCKER** — Build and run the container.
+6. **HUB** — Push the image to Docker Hub.
+7. **KUBERNETES** — Deploy and test, if required.
+
+**Important:** Use only the steps required by your exam question. Replace sample names and ports with the values used in your application.
 
 QUICK TROUBLESHOOTING
 =====================
